@@ -1,21 +1,57 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './App.css';
 import ReactJson from 'react-json-view';
 import axios from 'axios';
+import clsx from 'clsx';
 
 function App() {
   const [url, setUrl] = useState('');
+  const [isurlError, setIsUrlError] = useState(false);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [headers, setHeaders] = useState('');
   const [enableClipboard, setEnableClipboard] = useState(false);
   const [displayDataTypes, setDisplayDataTypes] = useState(false);
   const [displayObjectSize, setDisplayObjectSize] = useState(false);
+  const [enablePolling, setEnablePolling] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [pollingTime, setPollingTime] = useState(100);
+  const [pollCount, setPollCount] = useState(0);
+  const urlRef = useRef(null);
+
+  const toggleModal = () => {
+    setModalOpen(!modalOpen);
+  };
+
+  const startPolling = (e) => {
+    e.preventDefault();
+    setEnablePolling(true);
+
+    if (pollingTime < 50) {
+      return window.alert('Polling time should be greater than 50ms');
+    }
+
+    toggleModal();
+  }
+
+  useEffect(() => {
+    if (enablePolling) {
+      const interval = setInterval(() => {
+        callApi();
+        setPollCount(prevCount => prevCount + 1);
+      }, pollingTime);
+      return () => {
+        setLoading(false);
+        clearInterval(interval);
+      }
+    }
+  }, [enablePolling])
+
 
   async function callApi() {
     try {
       setLoading(true);
-      setData(null); // Reset data on new request
+      // setData(null); // Reset data on new request
       if (url === '') {
         window.alert('Please enter a valid URL');
         return;
@@ -29,33 +65,66 @@ function App() {
         return;
       }
       window.alert("Failed to fetch data from the API");
+      throw new Error(error);
     } finally {
-      setLoading(false);
+      !enablePolling && setLoading(false);
     }
   }
 
   return (
     <div className='w-full flex items-center justify-center min-h-screen'>
       <div className="max-w-xl w-full">
-        <h1 className='text-5xl font-bold -mt-16'>Start Polling</h1>
-        <div className="w-full flex items-center mt-8">
+        <h1 className='text-5xl font-bold'>
+          Send a GET request
+        </h1>
+        <div className="w-full flex items-center mt-8 relative">
           <input
             type="url"
+            ref={urlRef}
             placeholder='Enter url'
-            className='px-3 rounded-l-md py-2.5 w-full'
+            className={clsx('px-3 rounded-l-md py-2.5 w-full outline-none',
+              isurlError ? "focus-visible:ring-1 focus-visible:ring-red-500" : "focus-visible:ring-2 focus-visible:ring-teal-600"
+            )}
             value={url}
-            onChange={e => setUrl(e.target.value)}
+            onChange={e => {
+              setUrl(e.target.value);
+              setIsUrlError(false);
+            }}
             disabled={loading}
           />
-          <button onClick={callApi} disabled={loading} className='w-fit py-2.5 bg-teal-600 hover:bg-teal-700 transition-colors duration-150 font-medium px-4 rounded-r-md'>
-            Poll
+          <button onClick={callApi} disabled={loading} className='w-fit py-2.5 bg-teal-600 hover:bg-teal-700 transition-colors duration-150 font-medium px-4 rounded-r-md font-mono'>
+            GET
           </button>
+        </div>
+        <div className='py-2 text-sm text-gray-300 font-mono flex items-center justify-between mt-1'>
+          <label className="container-x">
+            <span className="">Enable Polling</span>
+            <input
+              type="checkbox"
+              className="enablePolling checkbox"
+              checked={enablePolling}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  if (url === '') {
+                    urlRef.current.focus();
+                    setIsUrlError(true);
+                    return;
+                  }
+                  toggleModal();
+                } else {
+                  setEnablePolling(false);
+                }
+              }}
+            />
+            <span className="checkmark"></span>
+          </label>
+          <span className='ml-auto block'>Polled: {pollCount}times</span>
         </div>
 
         <div className='w-full my-4'>
           <textarea
             type="text"
-            placeholder='Enter headers'
+            placeholder='Enter headers as JSON'
             className='px-3 max-h-60 rounded-md py-2.5 w-full'
             value={headers}
             onChange={e => setHeaders(e.target.value)}
@@ -63,15 +132,15 @@ function App() {
           />
         </div>
 
-        <div className='w-full text-left border border-gray-700 rounded-md p-2'>
-          <div className='flex items-center justify-between w-full mb-2'>
+        <div className='w-full text-left border border-gray-700 rounded-md p-2 pt-0 max-h-80 overflow-y-auto relative'>
+          <div className='flex items-center justify-between w-full sticky top-0 z-10 bg-[#242424] py-1'>
             <span className='block select-none'>Response:</span>
             <div className='flex items-center gap-2'>
               <label className="container-x">
                 <span className="">Enable Clipboard</span>
                 <input
                   type="checkbox"
-                  className="enableClipboard"
+                  className="enableClipboard checkbox"
                   checked={enableClipboard}
                   onChange={() => setEnableClipboard(!enableClipboard)}
                 />
@@ -83,7 +152,7 @@ function App() {
                 </span>
                 <input
                   type="checkbox"
-                  className="displayDataTypes"
+                  className="displayDataTypes checkbox"
                   checked={displayDataTypes}
                   onChange={() => setDisplayDataTypes(!displayDataTypes)}
                 />
@@ -95,7 +164,7 @@ function App() {
                 </span>
                 <input
                   type="checkbox"
-                  className="displayObjectSize"
+                  className="displayObjectSize checkbox"
                   checked={displayObjectSize}
                   onChange={() => setDisplayObjectSize(!displayObjectSize)}
                 />
@@ -103,6 +172,7 @@ function App() {
               </label>
             </div>
           </div>
+
           <div>
             {data ?
               <ReactJson
@@ -117,7 +187,39 @@ function App() {
             }
           </div>
         </div>
+      </div>
 
+      <div className={`modal fixed inset-0 bg-black/90 z-50 flex items-center justify-center ${modalOpen ? "opacity-100 visible" : "opacity-0 invisible"} transition-all duration-150`}>
+        <form onSubmit={startPolling} className="modal-body bg-[#242424] text-gray-50 w-full max-w-md rounded-md p-16">
+          <h4 className='font-semibold text-xl text-left mb-2'>Enter polling interval (ms)</h4>
+          <input
+            type="number"
+            name="polling-time"
+            value={pollingTime}
+            onChange={(e) => setPollingTime(e.target.value)}
+            id="poll"
+            className='px-3 rounded-md outline-none py-2.5 w-full bg-transparent border border-gray-600'
+            min={50}
+          />
+
+          <div className='flex justify-between mt-4 text-white'>
+            <button
+              type="submit"
+              className='bg-teal-600 hover:bg-teal-700 transition-colors duration-200 font-medium px-4 py-2.5 rounded-md'
+            >
+              Start
+            </button>
+            <button
+              type='button'
+              onClick={() => {
+                toggleModal();
+                setEnablePolling(false);
+              }}
+              className='bg-red-600 hover:bg-red-700 transition-colors duration-200 font-medium px-4 py-2.5 rounded-md'>
+              Close
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )
