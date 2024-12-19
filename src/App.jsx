@@ -3,13 +3,18 @@ import './App.css';
 import ReactJson from 'react-json-view';
 import axios from 'axios';
 import clsx from 'clsx';
+import ListBox from './components/Listbox';
+
+const requestTypes = ['GET', 'POST', 'PUT', 'DELETE'];
 
 function App() {
+  const [requestType, setRequestType] = useState(requestTypes[0]);
   const [url, setUrl] = useState('');
   const [isurlError, setIsUrlError] = useState(false);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [headers, setHeaders] = useState('');
+  const [requestBody, setRequestBody] = useState('');
   const [enableClipboard, setEnableClipboard] = useState(false);
   const [displayDataTypes, setDisplayDataTypes] = useState(false);
   const [displayObjectSize, setDisplayObjectSize] = useState(false);
@@ -53,11 +58,17 @@ function App() {
       setLoading(true);
       // setData(null); // Reset data on new request
       if (url === '') {
-        window.alert('Please enter a valid URL');
+        setIsUrlError(true);
+        urlRef.current.focus();
         return;
       }
       const parsedHeaders = headers ? JSON.parse(headers) : {};
-      const response = await axios.get(url, { headers: parsedHeaders });
+      const response = await axios({
+        method: requestType.toLowerCase(),
+        url,
+        headers: parsedHeaders,
+        data: method === "post" || method === "put" ? requestBody : undefined, // include data only for applicable methods
+      });
       setData(response.data);
     } catch (error) {
       if (error?.response?.data) {
@@ -75,7 +86,7 @@ function App() {
     <div className='w-full flex items-center justify-center min-h-screen'>
       <div className="max-w-xl w-full">
         <h1 className='text-5xl font-bold'>
-          Send a GET request
+          Send a request
         </h1>
         <div className="w-full flex items-center mt-8 relative">
           <input
@@ -92,9 +103,11 @@ function App() {
             }}
             disabled={loading}
           />
-          <button onClick={callApi} disabled={loading} className='w-fit py-2.5 bg-teal-600 hover:bg-teal-700 transition-colors duration-150 font-medium px-4 rounded-r-md font-mono'>
-            GET
+
+          <button onClick={callApi} disabled={loading} className='w-fit py-2.5 bg-teal-600 transition-colors duration-150 font-medium px-4 font-mono'>
+            {requestType}
           </button>
+          <ListBox defaultValue={requestType} values={requestTypes} handleSetValue={setRequestType} />
         </div>
         <div className='py-2 text-sm text-gray-300 font-mono flex items-center justify-between mt-1'>
           <label className="container-x">
@@ -124,13 +137,27 @@ function App() {
         <div className='w-full my-4'>
           <textarea
             type="text"
-            placeholder='Enter headers as JSON'
+            placeholder='Enter headers as JSON (optional)'
             className='px-3 max-h-60 rounded-md py-2.5 w-full'
             value={headers}
             onChange={e => setHeaders(e.target.value)}
             disabled={loading}
           />
         </div>
+        {
+          requestType === 'POST' || requestType === 'PUT' ?
+            <div className='w-full my-4'>
+              <textarea
+                type="text"
+                placeholder='Enter request body as JSON'
+                className='px-3 max-h-60 rounded-md py-2.5 w-full'
+                value={requestBody}
+                onChange={e => setRequestBody(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            : null
+        }
 
         <div className='w-full text-left border border-gray-700 rounded-md p-2 pt-0 max-h-80 overflow-y-auto relative'>
           <div className='flex items-center justify-between w-full sticky top-0 z-10 bg-[#242424] py-1'>
