@@ -3,7 +3,7 @@ import './App.css';
 import ReactJson from 'react-json-view';
 import axios from 'axios';
 import clsx from 'clsx';
-import ListBox from './components/Listbox';
+import ListBox from './components/ListBox';
 
 const requestTypes = ['GET', 'POST', 'PUT', 'DELETE'];
 
