@@ -39,7 +39,7 @@ export default function ListBox({ defaultValue, values, handleSetValue }) {
                         <ListboxOption
                             key={person}
                             value={person}
-                            className="group flex cursor-pointer items-center gap-2 rounded-lg py-1.5 px-3 select-none data-[focus]:bg-white/10"
+                            className="group flex cursor-pointer items-center gap-2 rounded-md py-1.5 px-3 select-none data-[focus]:bg-white/10"
                         >
                             <div className="text-sm/6 text-white">{person}</div>
                         </ListboxOption>
